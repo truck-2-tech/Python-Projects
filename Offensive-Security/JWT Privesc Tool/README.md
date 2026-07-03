@@ -1,5 +1,3 @@
-Apologies for the fragmentation in the previous response. Here is the **complete, consolidated README** incorporating all updates: the script must run **on the target machine**, transfer methods (SCP/curl), removal of specific "Fireflow" names in favor of placeholders, and the corrected usage instructions without unnecessary `chmod` commands.
-
 ***
 
 # JWT Privilege Escalation & MCP Tool Injection Exploit
