@@ -20,13 +20,13 @@ pip install requests
 ## Usage
 
 ```bash
-python3 jwt_escalate.py -t <TARGET_URL> -u <USERNAME> -p <PASSWORD>
+python3 jwt_privesc.py -t <TARGET_URL> -u <USERNAME> -p <PASSWORD>
 ```
 
 ### Example
 
 ```bash
-python3 jwt_escalate.py -t http://10.129.244.214:30080 -u langflow-bot -p 'Langfl0w@mcp2026!'
+python3 jwt_privesc.py -t http://10.129.244.214:30080 -u langflow-bot -p 'Langfl0w@mcp2026!'
 ```
 
 ### Arguments
