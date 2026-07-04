@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Dirb-Bruteforce.py - Enhanced Directory Brute-Force Scanner
+dir_scanner.py - Enhanced Directory Brute-Force Scanner
 Features: Multi-threading, proxy support, extensions, rate limiting, false positive reduction
 """
 
