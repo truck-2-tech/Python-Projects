@@ -67,7 +67,7 @@ python3 brute_force_enhanced.py -u http://target.com/login -U admin -w passwords
 python3 brute_force_enhanced.py -u http://target.com/login -U admin -w passwords.txt -s "Welcome" -c 200
 ```
 
-***Features In-Depth**
+**Features In-Depth**
 
 ### 1. External Wordlist Support
 The script now reads passwords from any text file, enabling use of comprehensive wordlists like `rockyou.txt`, `seclists`, or custom lists.
