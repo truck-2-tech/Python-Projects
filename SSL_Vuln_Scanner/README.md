@@ -22,12 +22,7 @@ A comprehensive Python tool for auditing SSL/TLS configurations, detecting depre
 
 ## Installation
 
-No installation required. The script uses only Python standard libraries:
-
-```bash
-# Clone or download the script
-chmod +x ssl_scanner.py
-```
+No installation required. The script uses only Python standard libraries.
 
 ## Usage
 
