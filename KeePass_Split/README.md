@@ -1,61 +1,85 @@
-# keepass-split
+# keepass_split
 
-A small utility that splits a `keepassxc-cli` CSV export into two flat wordlist files, one for usernames and one for passwords, in matching line order. Built for pentest workflows where a KeePass database has been recovered from a target and the credentials inside need to be reshaped into a format tools like Kerbrute, nxc, or Hydra can consume directly.
+A small utility that rebuilds two common recon one-liners into a single script. It takes the raw output of a `netexec --users` enumeration and a `keepassxc-cli` CSV export and writes them out as flat wordlist files, one username per line and one password per line, ready to hand off to tools like Kerbrute, nxc, or Hydra.
 
 ## Why
 
-`keepassxc-cli export --format csv` produces a structured CSV with Group, Title, Username, Password, URL, Notes, and timestamp columns. Most offensive tooling doesn't want that, it wants one username per line and one password per line. This script handles that conversion in one step, and accounts for the common case where an entry's Username field is left blank and the actual identifier only exists in the Title field.
+On an AD box you'll often pull a valid domain user list with netexec and separately recover a KeePass database with credentials in it. Getting both into plain wordlists usually means remembering a grep/awk pipeline for one and a cut pipeline for the other, every single time. This script replaces both with one command.
+
+It specifically mirrors these two pipelines.
+
+```bash
+netexec smb <target> -u <user> -p '<pass>' --users \
+    | grep -vF -e '[' -e '-Username-' | awk '{print $5}'
+
+keepassxc.cli export --format csv <db.kdbx> | cut -d'"' -f8
+```
 
 ## Requirements
 
 - Python 3.6+
-- No third party dependencies, uses only the standard library `csv` module
+- No third party dependencies, standard library only
 
 ## Usage
 
-Export the KeePass database to CSV first.
+Save the raw output of each command to a file first. keepassxc-cli needs an interactive prompt for the vault password, so it can't be piped directly into the script.
 
 ```bash
-keepassxc.cli export --format csv target.kdbx > export.csv
+netexec smb puppy.htb -u levi.james -p 'KingofAkron2025!' --users > nxc_users_raw.txt
+keepassxc.cli export --format csv recovery.kdbx > keepass_export_raw.csv
 ```
 
-Then run the script against the export.
+Then run the script against one or both files.
 
 ```bash
-python3 keepass_split.py export.csv
+python3 keepass_split.py --nxc nxc_users_raw.txt --keepass keepass_export_raw.csv
 ```
 
-This produces two files in the current directory.
+This produces the following files in the current directory, depending on which flags were passed.
 
 ```
-keepass_users.txt
-keepass_pass.txt
+users.txt
+passwords.txt
 ```
 
-Each line in `keepass_users.txt` corresponds to the same line number in `keepass_pass.txt`, so the output can be used for paired credential testing as well as a straight wordlist spray.
+Either flag can be used on its own if you only have one side of the data, for example just extracting passwords from a recovered vault without an nxc user list.
+
+```bash
+python3 keepass_split.py --keepass keepass_export_raw.csv
+```
 
 ## Behavior notes
 
-If the Username field is empty for an entry, which is common when credentials were only ever stored under Title, the script falls back to the Title field so the line isn't dropped or left blank. Entries with no password value are skipped in the password file but still contribute a line to the username file if a name was recovered, and vice versa, so the two files may not always be perfectly aligned if the source data itself is inconsistent. Review the output before assuming a strict 1:1 mapping if the export contains partial entries.
+The nxc parser drops the banner line and the `-Username-` header line, then takes the fifth whitespace-separated field from each remaining row, matching the column position netexec prints the account name in.
 
-Display names pulled from Title, such as `JAMIE WILLIAMSON`, are not usable Active Directory usernames as-is. Consider running the output through a username permutation tool such as usernamer, username-anarchy, or a custom script to generate likely AD-style formats (`jamie.williamson`, `j.williamson`, `jwilliamson`) before using the list against Kerbrute, nxc, or similar.
+The keepass parser splits each CSV line on the literal double-quote character and takes the eighth field, which lands on the Password column given the CSV's `Group,Title,Username,Password,...` layout. The literal header value `Password` is filtered out so it doesn't end up in the wordlist. This is a positional cut, not a proper CSV parse, so it expects the export to keep the default keepassxc-cli column order.
+
+The two output files are independent lists rather than paired line-for-line entries, since usernames come from live domain enumeration and passwords come from a separate recovered vault, and the two sources won't always be in the same order or represent the same accounts.
 
 ## Example
 
-Input CSV row:
+Given this nxc output.
+
+```
+SMB   puppy.htb 445  DC01  levi.james                     2025-03-10 08:00:00 0
+SMB   puppy.htb 445  DC01  jamie.williams                 2025-03-10 08:00:00 0
+```
+
+And this keepass export.
 
 ```
 "Root","JAMIE WILLIAMSON","","JamieLove2025!","puppy.htb","","","0","2025-03-10T08:57:58Z","2025-03-10T08:57:01Z"
 ```
 
-Output:
+Running the script produces:
 
-`keepass_users.txt`
+`users.txt`
 ```
-JAMIE WILLIAMSON
+levi.james
+jamie.williams
 ```
 
-`keepass_pass.txt`
+`passwords.txt`
 ```
 JamieLove2025!
 ```
